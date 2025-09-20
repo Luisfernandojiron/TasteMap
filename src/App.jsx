@@ -73,6 +73,7 @@ export default function App() {
   const [showHotels, setShowHotels] = useState(true);
 
   const [searchResults, setSearchResults] = useState([]); // lista de coincidencias por nombre
+  const [lastFetch, setLastFetch] = useState(0);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -92,7 +93,13 @@ export default function App() {
 
   const fetchPlaces = useCallback(async () => {
     if (!userPosition) return;
+
+    // Evitar refrescar si pasaron menos de 30 segundos
+    const now = Date.now();
+    if (now - lastFetch < 30000) return;
+
     setLoading(true);
+    setLastFetch(now);
 
     const lat = userPosition[0];
     const lon = userPosition[1];
@@ -166,11 +173,12 @@ export default function App() {
       );
       setPlaces(arr);
     } catch (err) {
-      console.error("Error Overpass:", err);
+      console.error("Error al obtener lugares:", err);
+      alert("No se pudieron cargar los lugares. Por favor intente más tarde.");
     } finally {
       setLoading(false);
     }
-  }, [userPosition, radius]);
+  }, [userPosition, radius, lastFetch]);
 
   useEffect(() => {
     fetchPlaces();
@@ -262,14 +270,21 @@ export default function App() {
           </button>
         </form>
 
+        {/* Modificar el select de radio */}
         <select
           value={radius}
-          onChange={(e) => setRadius(Number(e.target.value))}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            if (value > 0 && value <= 5000) {
+              setRadius(value);
+            }
+          }}
           style={{ padding: 6, borderRadius: 8 }}
         >
           <option value={500}>500 m</option>
           <option value={1000}>1 km</option>
           <option value={2000}>2 km</option>
+          <option value={5000}>5 km</option>
         </select>
 
         <button onClick={fetchPlaces} style={{ padding: "6px 10px", borderRadius: 8 }}>
@@ -351,6 +366,50 @@ export default function App() {
       ) : (
         <div style={{ textAlign: "center", marginTop: 20 }}>
           Obteniendo ubicación...
+        </div>
+      )}
+
+      {/* Filtros de tipo de lugar */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", position: "absolute", top: 50, left: "50%", transform: "translateX(-50%)", zIndex: 1000 }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={showRestaurants}
+            onChange={e => setShowRestaurants(e.target.checked)}
+          />
+          Restaurantes
+        </label>
+        <label>
+          <input
+            type="checkbox" 
+            checked={showFastFood}
+            onChange={e => setShowFastFood(e.target.checked)}
+          />
+          Comedores
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={showHotels} 
+            onChange={e => setShowHotels(e.target.checked)}
+          />
+          Hoteles
+        </label>
+      </div>
+
+      {/* Agregado el spinner de carga */}
+      {loading && (
+        <div style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          background: "rgba(255,255,255,0.8)",
+          padding: "20px",
+          borderRadius: "8px",
+          zIndex: 1001
+        }}>
+          Cargando lugares...
         </div>
       )}
     </div>
